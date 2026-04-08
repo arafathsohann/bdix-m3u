@@ -1,75 +1,102 @@
-# FTP M3U Maker
+# bdix-m3u
 
-## Overview
-FTP M3U Maker is a Python script designed to scrape video files from web-based directory listings (such as local BDIX FTP servers) and automatically generate an `.m3u` or M3U Plus playlist. It recursively scans directories, identifies video files, and organizes them properly based on natural sorting and season structures.
+A Python script that turns any FTP/HTTP directory listing into an M3U playlist — built for Bangladesh BDIX FTP servers.
 
-## File Structure
-- `ftpserver-m3u-maker.py`: The core Python script that performs the crawling, parsing, and M3U playlist generation.
-- `*.m3u`: Generated playlist files.
+## What it does
 
-## Reason & Intention
-The intention behind this project is to simplify the process of gathering media links from web directories and standardizing them into a single playlist file, automating a mostly manual and tedious process.
+BDIX FTP sites host thousands of movies and TV series through web-based directory indexes (H5AI, Apache autoindex, etc.). Opening these in a browser and copying links one by one is tedious. This script scrapes a given URL, finds all video files, and builds a ready-to-use `.m3u` playlist you can open directly in VLC, MX Player, Kodi, or any IPTV app.
 
-## Problem it Solves
-Many local FTP networks (e.g., BDIX servers) host TV shows and movies in web-based directory indexes. Manually copying each video link to watch in media players like VLC or IPTV apps is time-consuming and inefficient. This tool crawls the provided URL, detects video extensions, and generates a structured playlist ready to be imported into any M3U-compatible media player.
+- Works on any HTTP directory listing — H5AI, Apache, Nginx autoindex
+- Detects Season folders automatically and recurses into them
+- When multiple seasons are found, lets you pick one, several, or all
+- Sorts episodes in the correct order (Episode 1, 2 ... 10, not 1, 10, 2)
+- Auto-names the output file based on the show name and season(s)
+- Supports standard M3U and M3U Plus format (with group titles for IPTV apps)
 
-## Tech Stack
-- **Python 3**
-- Modules: `requests`, `argparse`, `os`, `re`, `urllib.parse`
-- **BeautifulSoup4** (`bs4`): Used for HTML parsing and extracting directory links.
+## Requirements
 
-## How it Works
-1. **Input**: The script takes a base URL of the web directory as an argument (or prompts the user for it).
-2. **Crawling**: It fetches the page using `requests` and parses the HTML with `BeautifulSoup`.
-3. **Detection**: It identifies video links based on common video file extensions (`.mp4`, `.mkv`, etc.) and detects "Season" directories to recurse into them.
-4. **Sorting**: Harvested video links are naturally sorted so episodes play in the correct sequential order (e.g., Ep1, Ep2... Ep10).
-5. **Output**: Finally, it writes the formatted playlist to an standard `.m3u` file or an M3U Plus format (with group titles) based on user preference.
+- Python 3.7+
+- `requests`
+- `beautifulsoup4`
 
-## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/arafathsohann/ftp-m3u-maker.git
-   cd ftp-m3u-maker
-   ```
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 ## Usage
 
-You can run the script via the command line by providing the URL as an argument, or simply run it and follow the interactive prompts.
+### Interactive mode
 
-### Command Line Arguments
+Just run the script and follow the prompts:
 
 ```bash
-python ftpserver-m3u-maker.py <URL> [OPTIONS]
+python bdix-m3u.py
 ```
 
-**Options:**
-- `<URL>` : (Optional) The target URL of the directory you want to scrape.
-- `-o`, `--output` : (Optional) The specific output `.m3u` filename you want to save as. If omitted, the script auto-generates a name based on the show's title and season numbers found.
-- `--plus` : (Optional) Generate the playlist in **M3U Plus** format. This adds group-title tags (like "Season 1", "Season 2"), which works better with most modern IPTV players to group episodes neatly.
+It will ask for the URL and whether you want M3U Plus format.
+
+### Command line
+
+```bash
+python bdix-m3u.py <URL> [OPTIONS]
+```
+
+| Option | Description |
+|---|---|
+| `<URL>` | URL of the FTP directory to scrape |
+| `-o FILE` | Output filename (auto-generated if omitted) |
+| `--plus` | M3U Plus format — adds group titles, better for IPTV apps |
 
 ### Examples
 
-**1. Basic Usage (interactive):**
-If you run the script without any arguments, it will prompt you for the URL and ask if you want M3U Plus format.
+**Scrape a full TV series (all seasons):**
 ```bash
-python ftpserver-m3u-maker.py
+python bdix-m3u.py http://ftp.bdix.net/Movies/Breaking-Bad/
 ```
 
-**2. Standard M3U Playlist:**
+**Scrape a single season directly:**
 ```bash
-python ftpserver-m3u-maker.py http://example-bdix-server.com/Movies/Awesome-Show/
+python bdix-m3u.py http://ftp.bdix.net/Movies/Breaking-Bad/Season-3/
 ```
 
-**3. M3U Plus Format (with season groupings):**
+**M3U Plus format (recommended for Kodi / IPTV players):**
 ```bash
-python ftpserver-m3u-maker.py http://example-bdix-server.com/Movies/Awesome-Show/ --plus
+python bdix-m3u.py http://ftp.bdix.net/Movies/Breaking-Bad/ --plus
 ```
 
-**4. Custom Output Filename:**
+**Custom output filename:**
 ```bash
-python ftpserver-m3u-maker.py http://example-bdix-server.com/Movies/Awesome-Show/ -o my_custom_playlist.m3u
+python bdix-m3u.py http://ftp.bdix.net/Movies/Breaking-Bad/ -o breaking-bad.m3u
 ```
+
+### Season selection
+
+When a URL has multiple seasons, the script will ask which ones to include:
+
+```
+Multiple seasons found: Season 1, Season 2, Season 3, Season 4, Season 5
+Enter season number(s) to include (comma-separated), or press Enter for ALL seasons:
+Season(s): 2,3
+```
+
+Press Enter to keep all seasons, or type season numbers separated by commas.
+
+## Output format
+
+**Standard M3U:**
+```
+#EXTM3U
+#EXTINF:-1,Breaking.Bad.S01E01.mkv
+http://ftp.bdix.net/.../Breaking.Bad.S01E01.mkv
+```
+
+**M3U Plus (with `--plus`):**
+```
+#EXTM3U
+#EXTINF:-1 group-title="Season-1",Breaking.Bad.S01E01.mkv
+http://ftp.bdix.net/.../Breaking.Bad.S01E01.mkv
+```
+
+## Supported video formats
+
+`.mp4` `.mkv` `.avi` `.mov` `.flv` `.wmv` `.webm` `.m3u8` `.ts` `.3gp` `.m4v` `.mpg` `.mpeg`
