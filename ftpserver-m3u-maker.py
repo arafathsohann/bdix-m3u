@@ -138,10 +138,16 @@ def get_clean_show_name(url):
     """
     Extracts a cleaner show name from the URL.
     Example: .../Modern-Family-(TV-Series-2009-2020)-1080p/ -> Modern-Family
+    If the URL ends with a Season folder, uses the parent segment as the show name.
     """
     parsed = urlparse(url)
     path = unquote(parsed.path).strip('/')
-    folder_name = path.split('/')[-1] if '/' in path else path
+    segments = [s for s in path.split('/') if s]
+    folder_name = segments[-1] if segments else path
+
+    # If last segment is a Season folder, step up to the show folder
+    if re.match(r'Season[-_\s]?\d+', folder_name, re.IGNORECASE) and len(segments) >= 2:
+        folder_name = segments[-2]
 
     # Common patterns to strip
     # Remove (TV Series ...) or similar parentheticals
@@ -240,6 +246,43 @@ def main():
     if not video_items:
         print("No videos found.")
         sys.exit(0)
+
+    # Season selection — only prompt when multiple seasons are detected
+    if len(season_numbers) > 1:
+        sorted_seasons = sorted(season_numbers)
+        print(f"\nMultiple seasons found: {', '.join(f'Season {s}' for s in sorted_seasons)}")
+        print("Enter season number(s) to include (comma-separated), or press Enter for ALL seasons:")
+        try:
+            season_choice = input("Season(s): ").strip()
+        except KeyboardInterrupt:
+            print("\nCancelled.")
+            sys.exit(0)
+
+        if season_choice:
+            chosen = set()
+            for part in season_choice.split(','):
+                part = part.strip()
+                if part.isdigit():
+                    chosen.add(int(part))
+
+            invalid = chosen - season_numbers
+            if invalid:
+                print(f"Warning: Season(s) {sorted(invalid)} not found. Ignoring.")
+                chosen -= invalid
+
+            if chosen:
+                video_items = [
+                    item for item in video_items
+                    if item.get('season')
+                    and (m := re.search(r'\d+', item['season']))
+                    and int(m.group(0)) in chosen
+                ]
+                season_numbers = chosen
+
+                if not video_items:
+                    print("No videos found for the selected season(s).")
+                    sys.exit(0)
+                print(f"Filtered to Season(s): {', '.join(str(s) for s in sorted(chosen))}")
 
     # Sort
     # We sort by filename naturally. S01E01 will parse correctly with natural_sort_key.
